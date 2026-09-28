@@ -1,10 +1,20 @@
-import Phaser from 'phaser'
+
+import Phaser from 'phaser';
+import santoSheet from './assets/santo-walk.png';
+import sueloTexture from './assets/suelo_plataforma.png';
 
 const config = {
   type: Phaser.AUTO,
 
   width: 960,
   height: 540,
+
+  pixelArt: false,
+
+  render: {
+    antialias: true,
+    roundPixels: false
+  },
 
   backgroundColor: '#87CEEB',
 
@@ -17,141 +27,167 @@ const config = {
 
   physics: {
     default: 'arcade',
-
     arcade: {
       gravity: {
         y: 1000
       },
-      debug: true
+      debug: false
     }
   },
 
   scene: {
-    create() {
-      // SANTO
-      this.santo = this.add.rectangle(
-        200,
-        400,
-        40,
-        60,
-        0x8b4513
-      )
+    preload,
+    create,
+    update
+  }
+};
 
-      this.physics.add.existing(this.santo)
+// CARGA DE RECURSOS
+function preload() {
+  this.load.spritesheet('santo', santoSheet, {
+    frameWidth: 256,
+    frameHeight: 350
+  });
 
-      this.santo.body.setCollideWorldBounds(true)
-      this.santo.setDepth(10)
+  this.load.image('suelo', sueloTexture);
+}
 
-      // SUELO
-      const suelo = this.add.rectangle(
-        1500,
-        500,
-        3000,
-        40,
-        0x654321
-      )
+// INICIALIZACIÓN DE LA ESCENA
+function create() {
+  // MUNDO
+  this.physics.world.setBounds(0, 0, 3000, 540);
 
-      this.physics.add.existing(suelo, true)
+  // SUELO VISUAL
+const sueloVisual = this.add.tileSprite(
+  1500,
+  510,
+  3000,
+  120,
+  'suelo'
+);
 
-      this.physics.add.collider(this.santo, suelo)
+sueloVisual.setTileScale(0.35, 0.35);
 
-      // PLATAFORMA
-      const plataforma = this.add.rectangle(
-        600,
-        400,
-        180,
-        30,
-        0x6b4f2a
-      )
+// SUELO FÍSICO INVISIBLE
+const suelo = this.add.rectangle(
+  1500,
+  470,
+  3000,
+  40
+);
 
-      this.physics.add.existing(plataforma, true)
+this.physics.add.existing(suelo, true);
+this.physics.add.collider(this.santo, suelo);
 
-      this.physics.add.collider(this.santo, plataforma)
+  // SANTO
+  this.santo = this.physics.add.sprite(
+    200,
+    420,
+    'santo'
+  );
 
-      // ÁRBOLES
-      for (let i = 0; i < 10; i++) {
-        const posicionX = Phaser.Math.Between(
-          700 + i * 180,
-          850 + i * 180
-        )
+  this.santo.setDepth(10);
+  this.santo.setScale(0.5);
+  this.santo.setOrigin(0.5, 0.5);
+  this.santo.setBodySize(100, 350, true);
+  this.santo.setCollideWorldBounds(true);
 
-        crearArbol(this, posicionX, 480)
-      }
+  // ANIMACIÓN DE CAMINAR
+  this.anims.create({
+    key: 'caminar',
+    frames: this.anims.generateFrameNumbers('santo', {
+      start: 0,
+      end: 5
+    }),
+    frameRate: 8,
+    repeat: -1
+  });
 
-      // CÁMARA
-      this.cameras.main.startFollow(this.santo)
+  // COLISIONES
+  this.physics.add.collider(this.santo, suelo);
 
-      this.cameras.main.setBounds(
-        0,
-        0,
-        3000,
-        540
-      )
+  // PLATAFORMA
+  const plataforma = this.add.rectangle(
+    600,
+    400,
+    180,
+    30,
+    0x6b4f2a
+  );
 
-      // LÍMITES DEL MUNDO
-      this.physics.world.setBounds(
-        0,
-        0,
-        3000,
-        540
-      )
+  plataforma.setDepth(2);
+  this.physics.add.existing(plataforma, true);
 
-      // CONTROLES
-      this.teclaEspacio = this.input.keyboard.addKey(
-        Phaser.Input.Keyboard.KeyCodes.SPACE
-      )
+  this.physics.add.collider(this.santo, plataforma);
 
-      this.teclas = this.input.keyboard.createCursorKeys()
-    },
+  // ÁRBOLES PROVISIONALES
+  for (let i = 0; i < 10; i++) {
+    const posicionX = Phaser.Math.Between(
+      700 + i * 180,
+      850 + i * 180
+    );
 
-    update() {
-      // MOVIMIENTO HORIZONTAL
-      if (this.teclas.left.isDown) {
-        this.santo.body.setVelocityX(-200)
-      } else if (this.teclas.right.isDown) {
-        this.santo.body.setVelocityX(200)
-      } else {
-        this.santo.body.setVelocityX(0)
-      }
+    const escala = Phaser.Math.FloatBetween(0.7, 1.4);
 
-      // SALTO
-      if (Phaser.Input.Keyboard.JustDown(this.teclaEspacio)) {
-        this.santo.body.setVelocityY(-600)
-      }
-    }
+    crearArbol(this, posicionX, 485, escala);
+  }
+
+  // CÁMARA
+  this.cameras.main.setBounds(0, 0, 3000, 540);
+  this.cameras.main.startFollow(this.santo);
+
+  // CONTROLES
+  this.teclas = this.input.keyboard.createCursorKeys();
+}
+
+// BUCLE PRINCIPAL
+function update() {
+  if (this.teclas.left.isDown) {
+    this.santo.body.setVelocityX(-200);
+    this.santo.setFlipX(true);
+    this.santo.anims.play('caminar', true);
+
+  } else if (this.teclas.right.isDown) {
+    this.santo.body.setVelocityX(200);
+    this.santo.setFlipX(false);
+    this.santo.anims.play('caminar', true);
+
+  } else {
+    this.santo.body.setVelocityX(0);
+    this.santo.anims.stop();
+    this.santo.setFrame(0);
   }
 }
 
+// ÁRBOLES PROVISIONALES
+function crearArbol(escena, posH, posV, escala = 1) {
+  const alturaTronco = 60 * escala;
+  const alturaCopa = 80 * escala;
 
-// FUNCIÓN PARA CREAR ÁRBOLES
-function crearArbol(escena, posH, posV) {
-  const alturaTronco = 60
-  const alturaCopa = 80
+  const anchoTronco = 20 * escala;
+  const anchoCopa = 60 * escala;
 
-  // TRONCO
   const tronco = escena.add.rectangle(
     posH,
     posV - alturaTronco / 2,
-    20,
+    anchoTronco,
     alturaTronco,
     0x654321
-  )
+  );
 
-  // COPA
   const copa = escena.add.rectangle(
     posH,
     posV - alturaTronco - alturaCopa / 2,
-    60,
+    anchoCopa,
     alturaCopa,
     0x90ee90
-  )
+  );
 
-  return {
-    tronco,
-    copa
-  }
+  tronco.setDepth(2);
+  copa.setDepth(2);
+
+  return { tronco, copa };
 }
 
-
 // CREAR JUEGO
-const game = new Phaser.Game(config)
+const game = new Phaser.Game(config);
